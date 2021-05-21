@@ -32,6 +32,17 @@
 $ npm install
 ```
 
+## Add config
+
+Add config.ts file into src folder (src/config.ts)
+
+```
+export const config = {
+  jwtSecret: your_secret,
+  mongoUri: mongoUri,
+};
+```
+
 ## Running the app
 
 ```bash
