@@ -36,4 +36,32 @@ export class UsersService {
     const user = new this.userModel(userData);
     return await user.save();
   }
+
+  // Add following
+  async addFollowing(id: string, followingTo: string): Promise<User> {
+    return await this.userModel.findByIdAndUpdate(id, {
+      $push: { following: followingTo },
+    });
+  }
+
+  // Add follower
+  async addFollower(id: string, follower: string): Promise<User> {
+    return await this.userModel.findByIdAndUpdate(id, {
+      $push: { followers: follower },
+    });
+  }
+
+  // Remove following
+  async removeFollowing(id: string, unfollowTo: string): Promise<User> {
+    return await this.userModel.findByIdAndUpdate(id, {
+      $pull: { following: unfollowTo },
+    });
+  }
+
+  // Remove follower
+  async removeFollower(id: string, unfollower: string): Promise<User> {
+    return await this.userModel.findByIdAndUpdate(id, {
+      $pull: { followers: unfollower },
+    });
+  }
 }

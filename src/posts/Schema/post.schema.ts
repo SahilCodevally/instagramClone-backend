@@ -20,6 +20,6 @@ export const PostSchema = new mongoose.Schema(
     },
   },
   {
-    timestamps: { currentTime: () => Date.now() },
+    timestamps: true,
   },
 );

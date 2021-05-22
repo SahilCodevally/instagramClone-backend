@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   HttpException,
+  Param,
   Post,
   Req,
   UseGuards,
@@ -108,6 +109,7 @@ export class UsersController {
     }
   }
 
+  // Get all user
   @UseGuards(JwtAuthGuard)
   @Get()
   async getAll(@Req() req): Promise<User[]> {
@@ -127,5 +129,64 @@ export class UsersController {
     } catch (err) {
       throw new HttpException(err.message, err.code);
     }
+  }
+
+  // Follow user
+  @UseGuards(JwtAuthGuard)
+  @Get('follow/:id')
+  async followUser(
+    @Req() req,
+    @Param('id') id: string,
+  ): Promise<{ statusCode: number; message: string }> {
+    const user = req.user._id;
+    const followToUserId = id;
+
+    // Add followToUser into User's following array
+    const result = await this.usersService.addFollowing(user, followToUserId);
+    if (!result) {
+      throw {
+        code: CODE.internalServer,
+        message: MESSAGE.addFollowingError,
+      };
+    }
+
+    // Add User into FollowingToUser's follower array
+    await this.usersService.addFollower(followToUserId, user);
+
+    return {
+      statusCode: CODE.success,
+      message: MESSAGE.followed,
+    };
+  }
+
+  // Unfollow user
+  @UseGuards(JwtAuthGuard)
+  @Get('unfollow/:id')
+  async unfollowUser(
+    @Req() req,
+    @Param('id') id: string,
+  ): Promise<{ statusCode: number; message: string }> {
+    const user = req.user._id;
+    const unfollowUserId = id;
+
+    // Add followToUser into User's following array
+    const result = await this.usersService.removeFollowing(
+      user,
+      unfollowUserId,
+    );
+    if (!result) {
+      throw {
+        code: CODE.internalServer,
+        message: MESSAGE.removeFollowingError,
+      };
+    }
+
+    // Add User into FollowingToUser's follower array
+    await this.usersService.removeFollower(unfollowUserId, user);
+
+    return {
+      statusCode: CODE.success,
+      message: MESSAGE.unfollowed,
+    };
   }
 }

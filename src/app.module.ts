@@ -7,7 +7,11 @@ import { config } from './config';
 import { PostsModule } from './posts/posts.module';
 
 @Module({
-  imports: [UserModule, MongooseModule.forRoot(config.mongoUri), PostsModule],
+  imports: [
+    UserModule,
+    MongooseModule.forRoot(config.mongoUri, { useFindAndModify: false }),
+    PostsModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })
