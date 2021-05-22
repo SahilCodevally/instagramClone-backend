@@ -17,6 +17,9 @@ export const MESSAGE = {
   success: 'Success',
   userNotFound: 'User not found!',
   loginSuccess: 'Login successful',
+  uploadFailed: 'File uploading filed',
+  postCreated: 'Post created successfully',
+  createPostFailed: 'Error while creating post',
   profileUpdated: 'Profile updated successfully',
   invalidDetails: 'Please provide valid details.',
   userUpdatedSuccess: 'User updated successfully',
@@ -27,6 +30,7 @@ export const MESSAGE = {
 };
 
 export const VALIDATION = {
+  images: 'Please select image!',
   email: 'Please provide Email!',
   password: 'Please provide Password!',
   emailTaken: 'Another account is using',
