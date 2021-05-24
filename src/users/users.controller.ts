@@ -1,130 +1,35 @@
 import {
-  Body,
   Controller,
   Get,
   HttpException,
   Param,
-  Post,
+  Patch,
   Req,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
-import { CreateUserDto, LoginUserDto } from './dto/user.dto';
+import * as mongoose from 'mongoose';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { User } from './interfaces/user.interface';
 import { UsersService } from './users.service';
-import { CODE, MESSAGE, VALIDATION } from '../constants';
-import { encryptPassword, verifyPassword } from '../utils/encryption';
-import { AuthService } from 'src/auth/auth.service';
+import { imageProfileFilter } from 'src/utils/file_helper';
+import { CODE, MESSAGE } from 'src/constants';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { PostsService } from 'src/posts/posts.service';
 
 @Controller('users')
 export class UsersController {
   constructor(
     private readonly usersService: UsersService,
-    private readonly authService: AuthService,
+    private readonly postsService: PostsService,
   ) {}
 
-  // Signup
-  @Post('signup')
-  async signUp(
-    @Body()
-    userData: CreateUserDto,
-  ): Promise<User> {
-    try {
-      // Get user detail by email
-      const emailQuery = { email: userData.email };
-      const userByEmail = await this.usersService.getUserDetails(emailQuery);
-      if (userByEmail) {
-        throw {
-          code: CODE.badRequest,
-          message: `${VALIDATION.emailTaken} ${userData.email}`,
-        };
-      }
-
-      // Get user detail by user name
-      const nameQuery = { userName: userData.userName };
-      const userByName = await this.usersService.getUserDetails(nameQuery);
-      if (userByName) {
-        throw {
-          code: CODE.badRequest,
-          message: VALIDATION.userNameTaken,
-        };
-      }
-
-      // Encrypt password
-      const hashPassword = await encryptPassword(userData.password);
-      userData.password = hashPassword;
-
-      // Create user function
-      return await this.usersService.createUser(userData);
-    } catch (err) {
-      throw new HttpException(err.message, err.code);
-    }
-  }
-
-  // Login
-  @Post('login')
-  async login(
-    @Body() loginData: LoginUserDto,
-  ): Promise<User & { token: string }> {
-    try {
-      const { userName } = loginData;
-      const emailRegex = /\b[a-z0-9-_.]+@[a-z0-9-_.]+(\.[a-z0-9]+)+/i;
-      let query: { email?: string; userName?: string } = { userName };
-
-      if (emailRegex.test(userName)) {
-        query = { email: userName };
-      }
-
-      // Find user
-      const user = await this.usersService.getUserDetails(query);
-      if (!user) {
-        throw {
-          code: CODE.dataNotFound,
-          message: MESSAGE.userNotFound,
-        };
-      }
-
-      // Compare password if user found
-      const isMatched = await verifyPassword(loginData.password, user.password);
-      if (!isMatched) {
-        throw {
-          code: CODE.badRequest,
-          message: MESSAGE.loginError,
-        };
-      }
-
-      // generate token if user password matched
-      const token = this.authService.generateToken(user._id);
-
-      delete user.__v;
-      delete user.password;
-
-      // return user;
-      return {
-        ...user,
-        token,
-      };
-    } catch (err) {
-      throw new HttpException(err.message, err.code);
-    }
-  }
-
-  // Get all user
+  // Get users
   @UseGuards(JwtAuthGuard)
   @Get()
-  async getAll(@Req() req): Promise<User[]> {
+  async getAll(): Promise<User[]> {
     try {
-      const id = req.user._id;
-
-      // Find user
-      const user = await this.usersService.findUserById(id);
-      if (!user) {
-        throw {
-          code: CODE.dataNotFound,
-          message: MESSAGE.userNotFound,
-        };
-      }
-
       return this.usersService.getAll();
     } catch (err) {
       throw new HttpException(err.message, err.code);
@@ -133,60 +38,155 @@ export class UsersController {
 
   // Follow user
   @UseGuards(JwtAuthGuard)
-  @Get('follow/:id')
+  @Get(':id/follow')
   async followUser(
     @Req() req,
     @Param('id') id: string,
   ): Promise<{ statusCode: number; message: string }> {
-    const user = req.user._id;
-    const followToUserId = id;
+    try {
+      const user = req.user._id;
+      const followToUserId = id;
 
-    // Add followToUser into User's following array
-    const result = await this.usersService.addFollowing(user, followToUserId);
-    if (!result) {
-      throw {
-        code: CODE.internalServer,
-        message: MESSAGE.addFollowingError,
+      // Add followToUser into User's following array
+      const result = await this.usersService.addFollowing(user, followToUserId);
+      if (!result) {
+        throw {
+          code: CODE.internalServer,
+          message: MESSAGE.addFollowingError,
+        };
+      }
+
+      // Add User into FollowingToUser's follower array
+      await this.usersService.addFollower(followToUserId, user);
+
+      return {
+        statusCode: CODE.success,
+        message: MESSAGE.followed,
       };
+    } catch (err) {
+      throw new HttpException(err.message, err.code);
     }
-
-    // Add User into FollowingToUser's follower array
-    await this.usersService.addFollower(followToUserId, user);
-
-    return {
-      statusCode: CODE.success,
-      message: MESSAGE.followed,
-    };
   }
 
   // Unfollow user
   @UseGuards(JwtAuthGuard)
-  @Get('unfollow/:id')
+  @Get(':id/unfollow')
   async unfollowUser(
     @Req() req,
     @Param('id') id: string,
   ): Promise<{ statusCode: number; message: string }> {
-    const user = req.user._id;
-    const unfollowUserId = id;
+    try {
+      const user = req.user._id;
+      const unfollowUserId = id;
 
-    // Add followToUser into User's following array
-    const result = await this.usersService.removeFollowing(
-      user,
-      unfollowUserId,
-    );
-    if (!result) {
-      throw {
-        code: CODE.internalServer,
-        message: MESSAGE.removeFollowingError,
+      // Add followToUser into User's following array
+      const result = await this.usersService.removeFollowing(
+        user,
+        unfollowUserId,
+      );
+      if (!result) {
+        throw {
+          code: CODE.internalServer,
+          message: MESSAGE.removeFollowingError,
+        };
+      }
+
+      // Add User into FollowingToUser's follower array
+      await this.usersService.removeFollower(unfollowUserId, user);
+
+      return {
+        statusCode: CODE.success,
+        message: MESSAGE.unfollowed,
       };
+    } catch (err) {
+      throw new HttpException(err.message, err.code);
     }
+  }
 
-    // Add User into FollowingToUser's follower array
-    await this.usersService.removeFollower(unfollowUserId, user);
+  // Uplaod profile image
+  @UseGuards(JwtAuthGuard)
+  @Patch('uploadImage')
+  @UseInterceptors(
+    FileInterceptor('profileImage', { fileFilter: imageProfileFilter }),
+  )
+  async uploadImage(
+    @UploadedFile() profileImage: Express.Multer.File,
+    @Req() req,
+  ): Promise<{ statusCode: number; message: string }> {
+    try {
+      // User Id
+      const userId = req.user._id;
 
-    return {
-      statusCode: CODE.success,
-      message: MESSAGE.unfollowed,
-    };
+      // Upload profile image to cloud
+      const image = await this.usersService.uploadImage(profileImage);
+      if (!image) {
+        throw {
+          code: CODE.internalServer,
+          message: MESSAGE.profileImageError,
+        };
+      }
+
+      const updateData = {
+        profileImage: { ...image },
+      };
+
+      // Update image data into database
+      await this.usersService.updateUser(userId, updateData);
+
+      return {
+        statusCode: CODE.success,
+        message: MESSAGE.profileImage,
+      };
+    } catch (err) {
+      throw new HttpException(err.message, err.code);
+    }
+  }
+
+  // Delete profile image
+  @UseGuards(JwtAuthGuard)
+  @Patch('deleteImage')
+  async deleteImage(
+    @Req() req,
+  ): Promise<{ statusCode: number; message: string }> {
+    try {
+      const userId = req.user._id;
+      const updateData = {
+        $unset: {
+          profileImage: 1,
+        },
+      };
+
+      // Remove profile image data from database
+      const user = await this.usersService.updateUser(userId, updateData);
+      if (!user) {
+        throw {
+          code: CODE.internalServer,
+          message: MESSAGE.removeProfileImageError,
+        };
+      }
+
+      // Profile image from cloud
+      this.usersService.deleteProfileImage(user.profileImage);
+
+      return {
+        statusCode: CODE.success,
+        message: MESSAGE.profileImageRemoved,
+      };
+    } catch (err) {
+      throw new HttpException(err.message, err.code);
+    }
+  }
+
+  // Get posts of user
+  @UseGuards(JwtAuthGuard)
+  @Get(':id/posts')
+  async posts(@Param('id') id: string) {
+    try {
+      const authorId = mongoose.Types.ObjectId(id);
+      // Fetch posts by author id
+      return await this.postsService.postsByAuthor(authorId);
+    } catch (err) {
+      throw new HttpException(err.message, err.code);
+    }
   }
 }

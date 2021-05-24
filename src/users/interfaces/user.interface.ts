@@ -7,7 +7,7 @@ export interface User {
   email?: string;
   password?: string;
   bio?: string;
-  profileImage?: string;
+  profileImage?: { url: string; key: string };
   followers?: mongoose.Schema.Types.ObjectId[];
   following?: mongoose.Schema.Types.ObjectId[];
   __v?: number;

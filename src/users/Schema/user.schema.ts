@@ -20,8 +20,11 @@ export const UserSchema = new mongoose.Schema(
       type: String,
       require: true,
     },
-    profileImage: { type: String },
     bio: { type: String },
+    profileImage: {
+      url: { type: String },
+      key: { type: String },
+    },
     followers: [
       {
         type: mongoose.Schema.Types.ObjectId,

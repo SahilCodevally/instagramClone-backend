@@ -27,8 +27,12 @@ export const MESSAGE = {
   addFollowingError: 'Error while following user',
   userUpdatedSuccess: 'User updated successfully',
   loginError: 'Please enter valid email or password',
+  profileImage: 'Profile image updated successfully',
   removeFollowingError: 'Error while unfollowing user',
   addFollowerError: 'Error while adding follower user',
+  profileImageError: 'Error while uploading profile image',
+  profileImageRemoved: 'Profile image removed successfully',
+  removeProfileImageError: 'Error while removing profile image',
   invalidCredentials: 'Please provide valid credentials and try again',
   socialAccAddSuccess: 'Your social account has been added successfully',
   internalServerError: 'Internal server error. Please try after some time.',
@@ -48,3 +52,5 @@ export const VALIDATION = {
   tokenNotProvided: 'Please provide a valid authorization details',
   userNameTaken: "This username isn't available. Please try another.",
 };
+
+export const emailRegex = /\b[a-z0-9-_.]+@[a-z0-9-_.]+(\.[a-z0-9]+)+/i;

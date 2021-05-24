@@ -4,6 +4,6 @@ export interface PostI {
   _id?: string;
   images?: { url: string; key: string }[];
   detail?: string;
-  author?: mongoose.Schema.Types.ObjectId;
+  author?: mongoose.Types.ObjectId;
   __v?: number;
 }

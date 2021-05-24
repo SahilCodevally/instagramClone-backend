@@ -7,15 +7,16 @@ import {
   UploadedFiles,
   UseGuards,
   UseInterceptors,
+  Delete,
+  Param,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import { CODE, MESSAGE, VALIDATION } from '../constants';
-import { UsersService } from '../users/users.service';
-import { fileFilter } from '../utils/file_helper';
+import { CODE, MESSAGE, VALIDATION } from 'src/constants';
+import { UsersService } from 'src/users/users.service';
+import { fileFilter } from 'src/utils/file_helper';
 import { PostsService } from './posts.service';
 import { PostI } from './interfaces/post.interface';
-// import { CreatePostDto } from './dto/post.dto';
 
 @Controller('posts')
 export class PostsController {
@@ -26,7 +27,7 @@ export class PostsController {
 
   // Create post
   @UseGuards(JwtAuthGuard)
-  @Post('createPost')
+  @Post()
   @UseInterceptors(FilesInterceptor('images', 10, { fileFilter }))
   async createPost(
     @UploadedFiles() images: Array<Express.Multer.File>,
@@ -37,22 +38,12 @@ export class PostsController {
         throw new HttpException(VALIDATION.images, CODE.badRequest);
       }
 
-      // Check for user
-      const id = req.user._id;
-      const user = await this.usersService.findUserById(id);
-      if (!user) {
-        throw {
-          code: CODE.dataNotFound,
-          message: MESSAGE.userNotFound,
-        };
-      }
-
       // Upload images to the cloud
       const result = await this.postsService.uploadFile(images);
 
       const postData = {
         images: [...result],
-        author: id,
+        author: req.user._id,
         detail: req.body.detail,
       };
 
@@ -75,22 +66,47 @@ export class PostsController {
     }
   }
 
+  // Get user and hif following user's all posts
   @UseGuards(JwtAuthGuard)
-  @Get('getAll')
-  async getAllPosts(@Req() req): Promise<PostI[]> {
+  @Get()
+  async posts(@Req() req): Promise<PostI[]> {
     try {
-      // Check for user
-      const id = req.user._id;
-      const user = await this.usersService.findUserById(id);
-      if (!user) {
-        throw {
-          code: CODE.dataNotFound,
-          message: MESSAGE.userNotFound,
-        };
-      }
+      // Get user's all following
+      const users = [...req.user.following, req.user._id];
 
       // Get user's posts
-      return await this.postsService.getAllPost(req.user._id);
+      return await this.postsService.posts(users);
+    } catch (err) {
+      console.log({ err });
+      throw new HttpException(err.message, err.code);
+    }
+  }
+
+  // Get post
+  @UseGuards(JwtAuthGuard)
+  @Get(':id')
+  async post(@Param('id') id: string): Promise<PostI> {
+    try {
+      // Get user's posts
+      return await this.postsService.post(id);
+    } catch (err) {
+      console.log({ err });
+      throw new HttpException(err.message, err.code);
+    }
+  }
+
+  // Delete post
+  @UseGuards(JwtAuthGuard)
+  @Delete(':id')
+  async deletePost(@Req() req, @Param('id') id: string): Promise<PostI> {
+    try {
+      // Delete post from database
+      const post = await this.postsService.deletePost(req.user._id, id);
+
+      // Remove images of post from cloud
+      this.postsService.deletePostImages(post.images);
+
+      return post;
     } catch (err) {
       console.log({ err });
       throw new HttpException(err.message, err.code);

@@ -60,6 +60,20 @@ export class S3COS {
     }
   }
 
+  // Delete items from bucket
+  async deleteObject(key: string) {
+    try {
+      const deleteObjectP = {
+        Bucket: bucketName,
+        Key: key,
+      };
+
+      return await this.s3.deleteObject(deleteObjectP).promise();
+    } catch (err) {
+      console.log(err);
+    }
+  }
+
   // Get all buckets lists
   async listAllBuckets() {
     try {
