@@ -17,6 +17,7 @@ import { imageProfileFilter } from 'src/utils/file_helper';
 import { CODE, MESSAGE } from 'src/constants';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { PostsService } from 'src/posts/posts.service';
+import { PostI } from 'src/posts/interfaces/post.interface';
 
 @Controller('users')
 export class UsersController {
@@ -179,12 +180,34 @@ export class UsersController {
 
   // Get posts of user
   @UseGuards(JwtAuthGuard)
-  @Get(':id/posts')
-  async posts(@Param('id') id: string) {
+  @Get(':userName/posts')
+  async posts(
+    @Param('userName') userName: string,
+  ): Promise<{ user: User; posts: PostI[] }> {
     try {
-      const authorId = mongoose.Types.ObjectId(id);
+      // Fetch user
+      const user = await this.usersService.getUserDetails({ userName });
+
+      if (!user) {
+        throw {
+          code: CODE.badRequest,
+          message: MESSAGE.userNotFound,
+        };
+      }
+
       // Fetch posts by author id
-      return await this.postsService.postsByAuthor(authorId);
+      const posts = await this.postsService.postsByAuthor(user._id);
+
+      // Remove unnecessary data
+      delete user.__v;
+      delete user.password;
+      delete user.email;
+      delete user.updatedAt;
+
+      return {
+        user,
+        posts,
+      };
     } catch (err) {
       throw new HttpException(err.message, err.code);
     }

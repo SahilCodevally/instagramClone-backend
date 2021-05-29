@@ -5,6 +5,8 @@ import { S3COS as IBMCloud } from 'src/utils/ibm_cloud';
 import { InjectModel } from '@nestjs/mongoose';
 const cloud = new IBMCloud();
 
+import { authorProjection } from '../utils/projection';
+
 @Injectable()
 export class PostsService {
   constructor(
@@ -48,24 +50,84 @@ export class PostsService {
   }
 
   // Find author's post
-  async postsByAuthor(autherId: mongoose.Types.ObjectId): Promise<PostI[]> {
+  async postsByAuthor(autherId: string): Promise<PostI[]> {
     return await this.postModel.find({ author: autherId });
   }
 
   // Find all posts for feed page
-  async posts(authors: mongoose.Types.ObjectId[]): Promise<PostI[]> {
-    return await this.postModel
-      .find({ author: { $in: authors } })
-      .populate({
-        path: 'author',
-        select: ['_id', 'userName', 'profileImage', 'createdAt'],
-      })
-      .sort({ createdAt: -1 });
+  async posts(
+    authors: mongoose.Types.ObjectId[],
+    user: mongoose.Types.ObjectId,
+  ): Promise<PostI[]> {
+    // return await this.postModel
+    //   .find({ author: { $in: authors } })
+    //   .populate({
+    //     path: 'author',
+    //     // select: ['_id', 'userName', 'profileImage', 'createdAt'],
+    //   })
+    //   .sort({ createdAt: -1 });
+
+    return await this.postModel.aggregate([
+      { $match: { author: { $in: authors } } },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'author',
+          foreignField: '_id',
+          as: 'author',
+        },
+      },
+      { $unwind: '$author' },
+      {
+        $addFields: {
+          isFollowing: {
+            $in: [user, '$author.followers'],
+          },
+        },
+      },
+      {
+        $project: {
+          author: {
+            ...authorProjection,
+          },
+        },
+      },
+      { $sort: { createdAt: -1 } },
+    ]);
   }
 
   // Find post by id
-  async post(postId: string): Promise<PostI> {
-    return await this.postModel.findOne({ _id: postId });
+  async post(
+    postId: mongoose.Types.ObjectId,
+    user: mongoose.Types.ObjectId,
+  ): Promise<PostI[]> {
+    return await this.postModel.aggregate([
+      { $match: { _id: postId } },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'author',
+          foreignField: '_id',
+          as: 'author',
+        },
+      },
+      { $unwind: '$author' },
+      {
+        $addFields: {
+          isFollowing: {
+            $in: [user, '$author.followers'],
+          },
+        },
+      },
+      {
+        $project: {
+          author: {
+            ...authorProjection,
+          },
+        },
+      },
+      { $sort: { createdAt: -1 } },
+    ]);
   }
 
   // Delete post

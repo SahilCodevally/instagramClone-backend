@@ -87,6 +87,8 @@ export class AuthController {
 
       delete user.__v;
       delete user.password;
+      delete user.following;
+      delete user.followers;
 
       // return user;
       return {

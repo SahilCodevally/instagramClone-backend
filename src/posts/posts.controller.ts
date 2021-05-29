@@ -16,6 +16,7 @@ import { CODE, MESSAGE, VALIDATION } from 'src/constants';
 import { UsersService } from 'src/users/users.service';
 import { fileFilter } from 'src/utils/file_helper';
 import { PostsService } from './posts.service';
+import * as mongoose from 'mongoose';
 import { PostI } from './interfaces/post.interface';
 
 @Controller('posts')
@@ -75,7 +76,7 @@ export class PostsController {
       const users = [...req.user.following, req.user._id];
 
       // Get user's posts
-      return await this.postsService.posts(users);
+      return await this.postsService.posts(users, req.user._id);
     } catch (err) {
       console.log({ err });
       throw new HttpException(err.message, err.code);
@@ -85,10 +86,12 @@ export class PostsController {
   // Get post
   @UseGuards(JwtAuthGuard)
   @Get(':id')
-  async post(@Param('id') id: string): Promise<PostI> {
+  async post(@Req() req, @Param('id') id: string): Promise<PostI> {
+    const postId = mongoose.Types.ObjectId(id);
     try {
       // Get user's posts
-      return await this.postsService.post(id);
+      const posts = await this.postsService.post(postId, req.user._id);
+      return posts[0];
     } catch (err) {
       console.log({ err });
       throw new HttpException(err.message, err.code);
@@ -104,7 +107,7 @@ export class PostsController {
       const post = await this.postsService.deletePost(req.user._id, id);
 
       // Remove images of post from cloud
-      this.postsService.deletePostImages(post.images);
+      this.postsService.deletePostImages(post?.images);
 
       return post;
     } catch (err) {

@@ -10,5 +10,7 @@ export interface User {
   profileImage?: { url: string; key: string };
   followers?: mongoose.Schema.Types.ObjectId[];
   following?: mongoose.Schema.Types.ObjectId[];
+  createdAt?: string;
+  updatedAt?: string;
   __v?: number;
 }
